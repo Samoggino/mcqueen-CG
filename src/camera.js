@@ -1,13 +1,12 @@
 "use strict";
 
-// --- TELECAMERA (stile Blender) ---
-// Coordinate sferiche attorno a un target
+// --- TELECAMERA (stile Blender adattato per Web) ---
 var cameraTheta = 0.5;      // angolo orizzontale (radians)
 var cameraPhi = 0.8;        // angolo verticale (radians)
 var cameraRadius = 15;      // distanza dal target
 var cameraTarget = [0, 0, 0]; // punto guardato
 
-// Stato interno per il dragging del mouse
+// Stato interno per il dragging
 var _camState = null;       // 'orbit', 'pan' o null
 var _camLastX = 0, _camLastY = 0;
 
@@ -33,22 +32,37 @@ function getViewProjectionMatrix(gl) {
     return m4.multiply(projectionMatrix, viewMatrix);
 }
 
-// Inizializza gli event listener del mouse sulla canvas
+// Inizializza gli event listener del puntatore sulla canvas
 function setupCameraInput(canvas) {
-    canvas.addEventListener('mousedown', function (e) {
-        if (e.button === 1) { // middle click
+    
+    canvas.addEventListener('pointerdown', function (e) {
+        // Accetta sia il Click Sinistro (0) che il Click Centrale (1) per supportare il touchpad
+        if (e.button === 0 || e.button === 1) {
             e.preventDefault();
+            
+            // Blocca il cursore all'interno del canvas anche se esci dai bordi durante il drag
+            canvas.setPointerCapture(e.pointerId);
+            
             _camState = e.shiftKey ? 'pan' : 'orbit';
             _camLastX = e.clientX;
             _camLastY = e.clientY;
         }
     });
 
-    canvas.addEventListener('mouseup', function (e) {
-        if (e.button === 1) { _camState = null; }
+    canvas.addEventListener('pointerup', function (e) {
+        if (e.button === 0 || e.button === 1) {
+            _camState = null;
+            try {
+                canvas.releasePointerCapture(e.pointerId);
+            } catch (err) {
+                // Gestione di sicurezza nel caso il browser perda il controllo del puntatore
+            }
+        }
     });
 
-    canvas.addEventListener('mousemove', function (e) {
+    canvas.addEventListener('pointermove', function (e) {
+        if (!_camState) return; // Se non stiamo trascinando, ignora il movimento
+
         var deltaX = e.clientX - _camLastX;
         var deltaY = e.clientY - _camLastY;
         _camLastX = e.clientX;
@@ -72,11 +86,13 @@ function setupCameraInput(canvas) {
         }
     });
 
+    // Lo zoom funziona nativamente con lo scorrimento a due dita dei touchpad moderni
     canvas.addEventListener('wheel', function (e) {
         e.preventDefault();
         cameraRadius *= (1 + e.deltaY * 0.001);
         cameraRadius = Math.max(1, Math.min(100, cameraRadius));
     });
 
+    // Evita l'apertura del menu contestuale se si usano click alternativi
     canvas.addEventListener('contextmenu', function (e) { e.preventDefault(); });
 }
