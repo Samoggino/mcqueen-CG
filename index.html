@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="it">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Pit Stop Simulator - Esame WebGL</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #333;
+        }
+
+        canvas {
+            display: block;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        #loading {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            font-family: sans-serif;
+        }
+    </style>
+
+    <script src="lib/webgl-utils.js"></script>
+    <script src="lib/gl-matrix.js"></script>
+    <script src="lib/m4.js"></script>
+    <script src="lib/glm_utils.js"></script>
+    <script src="lib/dat.gui.js"></script>
+
+    <script src="src/camera.js"></script>
+    <script src="src/scene.js"></script>
+    <script src="src/renderer.js"></script>
+
+    <script id="vertex-shader" type="x-shader/x-vertex">
+        attribute vec4 a_position;
+        attribute vec3 a_normal;
+        attribute vec2 a_texcoord;
+
+        uniform mat4 u_matrix;       // Matrice combinata (Proiezione * Vista * Modello)
+        uniform mat4 u_worldMatrix;  // Solo Modello (per calcolare le luci)
+
+        varying vec2 v_texcoord;
+        varying vec3 v_normal;
+
+        void main() {
+            // Calcola la posizione sullo schermo
+            gl_Position = u_matrix * a_position;
+            
+            // Passa le texture coordinate al fragment shader
+            v_texcoord = a_texcoord;
+            
+            // Passa la normale orientata correttamente (semplificazione per scalature uniformi)
+            v_normal = mat3(u_worldMatrix) * a_normal; 
+        }
+    </script>
+
+    <script id="fragment-shader" type="x-shader/x-fragment">
+        precision mediump float;
+
+        varying vec2 v_texcoord;
+        varying vec3 v_normal;
+
+        uniform sampler2D u_texture;
+        uniform vec3 u_lightDirection; // Direzione della luce (es. il sole)
+
+        void main() {
+            // Normalizza i vettori interpolati
+            vec3 normal = normalize(v_normal);
+            vec3 lightDir = normalize(u_lightDirection);
+            
+            // Calcolo illuminazione diffusa (Lambert) + Luce ambientale minima (0.3)
+            float light = max(dot(normal, lightDir), 0.0) + 0.3;
+
+            // Leggi il colore dal file .png
+            vec4 texColor = texture2D(u_texture, v_texcoord);
+            
+            // Moltiplica il colore per la luce calcolata
+            gl_FragColor = vec4(texColor.rgb * light, texColor.a);
+        }
+    </script>
+
+    <script src="app.js" defer></script>
+</head>
+
+<body>
+    <div id="loading">Caricamento asset in corso...</div>
+    <canvas id="glcanvas"></canvas>
+</body>
+
+</html>
